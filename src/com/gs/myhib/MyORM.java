@@ -147,7 +147,7 @@ public class MyORM {
 				int i = 0;
 				for (; i < methods2.length; i++) {
 					if (methods2[i].getName().startsWith("get")) {
-						Method method = getGetterMethod(methods2[i].getName(), methods2);
+						Method method = getSetterMethod(methods2[i].getName(), methods2);
 						// resultSet.getObject(methods2[i].getDeclaredAnnotation(MyColumn.class).name());
 						method.invoke(obj, resultSet.getObject(methods2[i].getDeclaredAnnotation(MyColumn.class).name(),
 								methods2[i].getReturnType()));
@@ -163,7 +163,7 @@ public class MyORM {
 		return obj;
 	}
 
-	private Method getGetterMethod(String name, Method[] methods2) {
+	private Method getSetterMethod(String name, Method[] methods2) {
 		for (int i = 0; i < methods2.length; i++) {
 			if (methods2[i].getName().startsWith("set") && methods2[i].getName().endsWith(name.substring(3))) {
 				return methods2[i];
