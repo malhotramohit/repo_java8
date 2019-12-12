@@ -9,40 +9,70 @@ import java.sql.SQLException;
 import java.util.HashMap;
 import java.util.Map;
 
-public class MyORM {
-	
-	
+public class MySession {
+
+	private Connection connection;
+
+	private MyTransaction myTransaction;
+
+	public MySession(Connection connection) {
+		super();
+		this.connection = connection;
+	}
+
+	public Connection getConnection() {
+		return connection;
+	}
+
+	public void setConnection(Connection connection) {
+		this.connection = connection;
+	}
+
+	public void close() {
+		try {
+			connection.close();
+		} catch (SQLException e) {
+			e.printStackTrace();
+		}
+	}
+
+	public MyTransaction getTransaction() {
+		myTransaction = new MyTransaction(this);
+		return myTransaction;
+	}
+
 	
 
 	public void save(Object obj) {
+		if (null != myTransaction) {
+			String tableName = getTableName(obj);
 
-		String tableName = getTableName(obj);
+			Method[] methods = obj.getClass().getDeclaredMethods();
+			HashMap<String, Object> colValMap = new HashMap<>();
 
-		Method[] methods = obj.getClass().getDeclaredMethods();
-		HashMap<String, Object> colValMap = new HashMap<>();
+			for (int i = 0; i < methods.length; i++) {
 
-		for (int i = 0; i < methods.length; i++) {
+				Method method = methods[i];
+				if (method.getName().startsWith("get")) {
 
-			Method method = methods[i];
-			if (method.getName().startsWith("get")) {
+					String colName = method.getAnnotation(MyColumn.class).name();
 
-				String colName = method.getAnnotation(MyColumn.class).name();
-
-				try {
-					colValMap.put(colName, method.invoke(obj));
-				} catch (IllegalAccessException | IllegalArgumentException | InvocationTargetException e) {
-					// TODO Auto-generated catch block
-					e.printStackTrace();
+					try {
+						colValMap.put(colName, method.invoke(obj));
+					} catch (IllegalAccessException | IllegalArgumentException | InvocationTargetException e) {
+						// TODO Auto-generated catch block
+						e.printStackTrace();
+					}
 				}
+
 			}
 
-		}
-
-		try {
-			boolean isDone = buildAndExecuteInsertQuery(tableName, colValMap);
-		} catch (SQLException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+			try {
+				boolean isDone = buildAndExecuteInsertQuery(tableName, colValMap);
+			} catch (SQLException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
 		}
 
 	}
@@ -77,8 +107,8 @@ public class MyORM {
 
 		String finalQuery = startInsert + colNames + " values " + values;
 		System.out.println(finalQuery);
-		Connection con = DBManager.getConnection();
-		PreparedStatement preparedStatement = con.prepareStatement(finalQuery);
+
+		PreparedStatement preparedStatement = connection.prepareStatement(finalQuery);
 		int i = 1;
 		for (Map.Entry<String, Object> entry : colValMap.entrySet()) {
 			preparedStatement.setObject(i, entry.getValue());
@@ -132,10 +162,8 @@ public class MyORM {
 
 		String query = "select * from " + tableName + " where " + primaryColName + "=?";
 
-		Connection con;
 		try {
-			con = DBManager.getConnection();
-			PreparedStatement preparedStatement = con.prepareStatement(query);
+			PreparedStatement preparedStatement = connection.prepareStatement(query);
 			preparedStatement.setObject(1, id);
 			resultSet = preparedStatement.executeQuery();
 		} catch (SQLException e) {
@@ -173,23 +201,6 @@ public class MyORM {
 			}
 		}
 		return null;
-	}
-
-	private void loadTables() {
-		Connection con;
-		try {
-			con = DBManager.getConnection();
-			PreparedStatement preparedStatement = con.prepareStatement("SELECT table_name FROM user_tables");
-			ResultSet resultSet = preparedStatement.executeQuery();
-			while (resultSet.next()) {
-
-				System.out.println(resultSet.getString(1));
-			}
-
-		} catch (SQLException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
 	}
 
 }
