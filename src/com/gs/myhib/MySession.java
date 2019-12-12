@@ -31,6 +31,7 @@ public class MySession {
 	public void close() {
 		try {
 			connection.close();
+			System.out.println("*********************** SESSION CLOSED ***********************");
 		} catch (SQLException e) {
 			e.printStackTrace();
 		}
@@ -40,8 +41,6 @@ public class MySession {
 		myTransaction = new MyTransaction(this);
 		return myTransaction;
 	}
-
-	
 
 	public void save(Object obj) {
 		if (null != myTransaction) {
@@ -70,8 +69,7 @@ public class MySession {
 			try {
 				boolean isDone = buildAndExecuteInsertQuery(tableName, colValMap);
 			} catch (SQLException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
+				throw new MyORMException(e.getMessage(), e);
 			}
 		}
 
@@ -89,6 +87,26 @@ public class MySession {
 			throws SQLException {
 
 		// insert into account (col1,col2,col3) values (?,?,?)
+		String finalQuery = prepareQuery(tableName, colValMap, false);
+		System.out.println("*********************** ABOUT TO EXECUTE ***********************");
+		System.out.println(
+				"*********************** QUERY FORMED BEFORE EXECUTION ***********************\n" + finalQuery);
+
+		PreparedStatement preparedStatement = connection.prepareStatement(finalQuery);
+		int i = 1;
+
+		for (Map.Entry<String, Object> entry : colValMap.entrySet()) {
+			preparedStatement.setObject(i, entry.getValue());
+			i++;
+		}
+
+		boolean status = preparedStatement.execute();
+		System.out.println("*********************** QUERY AFTER EXECUTION ***********************\n"
+				+ prepareQuery(tableName, colValMap, true));
+		return status;
+	}
+
+	private String prepareQuery(String tableName, HashMap<String, Object> colValMap, boolean withParam) {
 		String startInsert = "insert into " + tableName;
 		String colNames = "(";
 		String values = "(";
@@ -99,26 +117,23 @@ public class MySession {
 
 		colNames = colNames.substring(0, colNames.length() - 1).concat(")");
 
-		for (int i = 0; i < colValMap.size(); i++) {
-			values = values + "?" + ",";
+		if (withParam) {
+			for (Map.Entry<String, Object> entry : colValMap.entrySet()) {
+				values = values + entry.getValue() + ",";
+			}
+		} else {
+			for (int i = 0; i < colValMap.size(); i++) {
+				values = values + "?" + ",";
+			}
 		}
 
 		values = values.substring(0, values.length() - 1).concat(")");
 
 		String finalQuery = startInsert + colNames + " values " + values;
-		System.out.println(finalQuery);
-
-		PreparedStatement preparedStatement = connection.prepareStatement(finalQuery);
-		int i = 1;
-		for (Map.Entry<String, Object> entry : colValMap.entrySet()) {
-			preparedStatement.setObject(i, entry.getValue());
-			i++;
-		}
-
-		return preparedStatement.execute();
+		return finalQuery;
 	}
 
-	public Object get(Object id, Class clazz) {
+	public <T> T get(Object id, Class clazz) {
 
 		Class<?> myClass = null;
 		try {
@@ -141,7 +156,6 @@ public class MySession {
 		ResultSet resultSet = null;
 
 		Method[] methods = clazz.getDeclaredMethods();
-		HashMap<String, Object> colValMap = new HashMap<>();
 		String primaryColName = null;
 
 		for (int i = 0; i < methods.length; i++) {
@@ -187,11 +201,10 @@ public class MySession {
 				i = 0;
 			}
 		} catch (IllegalAccessException | IllegalArgumentException | InvocationTargetException | SQLException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
 
-		return obj;
+		return (T) obj;
 	}
 
 	private Method getSetterMethod(String name, Method[] methods2) {
