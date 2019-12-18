@@ -9,7 +9,7 @@ import java.lang.reflect.Modifier;
 public class ClassesTest1 {
 	public static void main(String[] args) {
 
-		Pen pen = new Pen(1, "Montex");
+		Pen pen = new Pen(11, "Montex");
 
 		Class penObjectClassObj = pen.getClass();
 
@@ -22,7 +22,22 @@ public class ClassesTest1 {
 		checkingMethodAttr(pen, penObjectClassObj);
 
 		checkingGetterAndSetters(penObjectClassObj);
-		
+
+		checkingPrivateFieldAttr(pen, penObjectClassObj);
+
+	}
+
+	private static void checkingPrivateFieldAttr(Pen pen, Class penObjectClassObj) {
+		try {
+			System.out.println("accessing private field");
+			Field field = penObjectClassObj.getDeclaredField("id");
+			field.setAccessible(true);
+			System.out.println(field.getName());
+			Long val = (Long) field.get(pen);
+			System.out.println(val);
+		} catch (NoSuchFieldException | SecurityException | IllegalArgumentException | IllegalAccessException e) {
+			e.printStackTrace();
+		}
 	}
 
 	private static void checkingGetterAndSetters(Class penObjectClassObj) {
